@@ -1,0 +1,5 @@
+import Console from "Console";
+
+export const print = (...args) => {
+  Console.writeLine.apply(null, args);
+};

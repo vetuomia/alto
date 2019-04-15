@@ -1,0 +1,22 @@
+{
+  "FormattingOptions": {
+    "IndentationSize": 2,
+    "NewLineForCatch": false,
+    "NewLineForElse": false,
+    "NewLineForFinally": false,
+    "NewLineForMembersInAnonymousTypes": false,
+    "NewLinesForBracesInAnonymousMethods": false,
+    "NewLinesForBracesInControlBlocks": false,
+    "NewLinesForBracesInAccessors": false,
+    "NewLinesForBracesInAnonymousTypes": false,
+    "NewLineForMembersInObjectInit": false,
+    "NewLinesForBracesInLambdaExpressionBody": false,
+    "NewLinesForBracesInMethods": false,
+    "NewLinesForBracesInObjectCollectionArrayInitializers": false,
+    "NewLinesForBracesInProperties": false,
+    "NewLinesForBracesInTypes": false
+  },
+  "MsBuild": {
+    "UseLegacySdkResolver": true
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "group": "build",
+      "label": "build debug",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "-c", "Debug", "-o", "bin/Debug"],
+      "problemMatcher": {
+        "owner": "cs",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": [
+          {
+            "regexp": "^([^\\s].*)\\((\\d+),(\\d+)\\): (error|warning) (CS\\d+): \\s*(.*)\\[.*\\]$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "code": 5,
+            "message": 6
+          }
+        ]
+      }
+    },
+    {
+      "group": "build",
+      "label": "build release",
+      "type": "process",
+      "command": "make",
+      "problemMatcher": {
+        "owner": "cs",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": [
+          {
+            "regexp": "^([^\\s].*)\\((\\d+),(\\d+)\\): (error|warning) (CS\\d+): \\s*(.*)\\[.*\\]$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "code": 5,
+            "message": 6
+          }
+        ]
+      }
+    },
+    {
+      "group": "test",
+      "dependsOn": ["build release"],
+      "label": "Run Unit Tests (Release)",
+      "type": "process",
+      "command": "bin/alto",
+      "args": ["--test"],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": true
+      }
+    },
+    {
+      "group": "test",
+      "dependsOn": ["build release"],
+      "label": "Run Test Script (Release)",
+      "type": "process",
+      "command": "bin/alto",
+      "args": ["scripts/test.alto"],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": true
+      }
+    }
+  ]
+}

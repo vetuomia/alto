@@ -1,0 +1,52 @@
+
+* Implement more core services
+
+  - Math functions
+  - String manipulation
+  - List and table iteration
+  - Parsing and formatting
+  - Stopwatch
+
+--------------------------------------------------------------------------------
+
+* Random language feature ideas
+
+  - Add comma operator
+
+    var a = f(), 2; // a == 2
+
+  - Optional braces in if() and while()
+
+    if a < b {
+    }
+
+    while true {
+    }
+
+  - Unconditional loop statement
+
+    loop {
+    }
+
+  - Better switch statement:
+
+    switch (expr) {
+      case (expr) { }
+      case (expr) { }
+      else { }
+    }
+
+  - Add sequence / iterator / foreach
+
+    foreach(var i in seq) {
+    }
+
+    var i = seq.iterate();
+    while(i.next()) {
+      var v = i.current;
+    }
+
+    for(var i = seq.iterate(); i.hasCurrent; i.next()) {
+      var v = i.current;
+    }
+

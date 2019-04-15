@@ -1,0 +1,63 @@
+import Console from "Console";
+
+export const run = describe => {
+  var tests = 0;
+  var failed = 0;
+  var unknown = 0;
+
+  describe((subject, it) => {
+    Console.writeLine(subject);
+
+    it((behavior, expect) => {
+      tests += 1;
+      var status = "NOT TESTED";
+      var failure = null;
+
+      if (expect) {
+        try {
+          var asserts = 0;
+
+          expect(condition => {
+            asserts += 1;
+
+            if (!condition) {
+              throw "Assertion failed";
+            }
+          });
+
+          if (asserts > 0) {
+            status = "OK";
+          } else {
+            unknown += 1;
+          }
+        } catch (error) {
+          failed += 1;
+          status = "FAIL";
+          failure = error;
+        }
+      } else {
+        unknown += 1;
+      }
+
+      Console.formatLine("  {0}: {1}", behavior, status);
+
+      if (failure) {
+        Console.formatLine("    {0}", failure);
+      }
+    });
+
+    Console.writeLine();
+  });
+
+  Console.format("Tests: {0}", tests);
+
+  if (failed > 0) {
+    Console.format(", Failed: {0}", failed);
+  }
+
+  if (unknown > 0) {
+    Console.format(", Unknown: {0}", unknown);
+  }
+
+  Console.writeLine();
+};

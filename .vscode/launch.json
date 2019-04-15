@@ -1,0 +1,40 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Unit Tests",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build debug",
+      "program": "${workspaceFolder}/bin/Debug/alto.dll",
+      "args": ["--test"],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "internalConsoleOptions": "openOnSessionStart",
+      "logging": {
+        "exceptions": false,
+        "moduleLoad": false
+      }
+    },
+    {
+      "name": "Debug Test Script",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build debug",
+      "program": "${workspaceFolder}/bin/Debug/alto.dll",
+      "args": ["--debug", "scripts/test.alto"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false,
+      "internalConsoleOptions": "neverOpen",
+      "logging": {
+        "exceptions": false,
+        "moduleLoad": false
+      }
+    }
+  ]
+}

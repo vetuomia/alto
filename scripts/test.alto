@@ -1,0 +1,147 @@
+import testing from "lib/testing.alto";
+
+testing.run(describe => {
+  describe("table", it => {
+    it("allows navigating without null checks", expect => {
+      const t = {
+        a: 3.14
+      };
+
+      expect(t.a == 3.14);
+      expect(t.a.b == null);
+      expect(t.a.b.c == null);
+    });
+
+    it("allows null as a key", expect => {
+      const t = {
+        [null]: 1
+      };
+
+      expect(t[null] == 1);
+    });
+  });
+
+  describe("lambda", it => {
+    it("can capture local variables", expect => {
+      const f = () => {
+        var n = 0;
+
+        return () => (n += 1);
+      };
+
+      const g = f();
+
+      expect(g() == 1);
+      expect(g() == 2);
+      expect(g() == 3);
+    });
+  });
+
+  describe("exceptions", it => {
+    it("can throw and catch", expect => {
+      var n = 0;
+
+      try {
+        throw 1;
+      } catch (e) {
+        n = e.value;
+      }
+
+      expect(n == 1);
+    });
+
+    it("throw is an expression", expect => {
+      var n = 0;
+
+      try {
+        var m = n || throw 1;
+      } catch (e) {
+        n = e.value;
+      }
+
+      expect(n == 1);
+    });
+
+    it("finally is called after try", expect => {
+      var n = 0;
+
+      try {
+        n += 1;
+      } finally {
+        n += 1;
+      }
+
+      expect(n == 2);
+    });
+
+    it("finally is called after catch", expect => {
+      var n = 0;
+
+      try {
+        throw 1;
+      } catch (e) {
+        n = e.value;
+      } finally {
+        n += 1;
+      }
+
+      expect(n == 2);
+    });
+
+    it("finally is called even if catch throws", expect => {
+      var n = 0;
+      var c = 0;
+
+      try {
+        try {
+          throw 1;
+        } catch (e) {
+          throw e;
+        } finally {
+          n += 1;
+        }
+      } catch {
+        c = 1;
+      }
+
+      expect(n == 1);
+      expect(c == 1);
+    });
+
+    it("even weird control flows work", expect => {
+      const f = () => {
+        try {
+          try {
+            try {
+              try {
+                return 1;
+              } finally {
+                return 2;
+              }
+            } finally {
+              return 3;
+            }
+          } finally {
+            return 4;
+          }
+        } finally {
+          return 5;
+        }
+      };
+
+      const g = () => {
+        try {
+          try {
+            return 1;
+          } finally {
+            throw 2;
+          }
+        } catch (e) {
+          return e.value;
+        }
+      };
+
+      expect(g() == 2);
+    });
+  });
+});

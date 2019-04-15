@@ -1,0 +1,7 @@
+{
+  "files.exclude": {
+    ".editorconfig": true,
+    "omnisharp.json": true,
+    "nuget.config": true
+  }
+}
