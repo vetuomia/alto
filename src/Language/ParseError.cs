@@ -5,6 +5,9 @@ using System.Text;
 /// Parse error.
 /// </summary>
 sealed class ParseError : Exception {
+  /// <summary>
+  /// The file name.
+  /// </summary>
   public string FileName { get; }
 
   /// <summary>
@@ -61,7 +64,7 @@ sealed class ParseError : Exception {
     sb.Append("): ")
       .Append(this.Message);
 
-    if (this.Source != null) {
+    if (this.SourceText != null) {
       sb.AppendLine();
 
       if (this.Row >= 2) {

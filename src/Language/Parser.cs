@@ -59,7 +59,7 @@ sealed class Parser : Parser.ISyntaxBuilder {
   /// </summary>
   /// <param name="token">The expected token.</param>
   /// <param name="message">The optional error message.</param>
-  public Token Required(string token, string message = null) => this.Next.Is(token) ? this.Advance() : throw this.Next.Error(message ?? $"Expected '{token}' after '{last}'");
+  public Token Required(string token, string message = null) => this.Next.Is(token) ? this.Advance() : throw this.Next.Error(message ?? $"Expected '{token}' after '{this.last}'");
 
   /// <summary>
   /// If the next token matches, removes it and returns true; otherwise false.

@@ -58,7 +58,7 @@ sealed class Token {
   public double NumberValue { get; private set; }
 
   /// <summary>
-  /// The line number where the token appears in the source text.
+  /// The row number where the token appears in the source text.
   /// </summary>
   public int Row { get; private set; }
 
@@ -68,9 +68,9 @@ sealed class Token {
   public int Column { get; private set; }
 
   /// <summary>
-  /// The entire source code for context.
+  /// The entire source text for context.
   /// </summary>
-  public string[] Source { get; private set; }
+  public string[] SourceText { get; private set; }
 
   /// <summary>
   /// The source file name.
@@ -133,24 +133,10 @@ sealed class Token {
   public bool IsNot(params string[] tokens) => !tokens.Any(this.Is);
 
   /// <summary>
-  /// Ensures that the token matches, throws an error otherwise.
-  /// </summary>
-  /// <param name="token">The token.</param>
-  /// <param name="message">The optional error message.</param>
-  public Token Require(string token, string message = null) => this.Is(token) ? this : throw this.Error(message);
-
-  /// <summary>
-  /// Ensures that the token does not match, throws an error otherwise.
-  /// </summary>
-  /// <param name="token">The token.</param>
-  /// <param name="message">The optional error message.</param>
-  public Token Reject(string token, string message = null) => this.IsNot(token) ? this : throw this.Error(message);
-
-  /// <summary>
   /// Returns a parse error for this token.
   /// </summary>
   /// <param name="message">The error message.</param>
-  public ParseError Error(string message = null) => new ParseError(message ?? $"Unexpected '{this}'", this.FileName, this.Source, this.Row, this.Column);
+  public ParseError Error(string message = null) => new ParseError(message ?? $"Unexpected '{this}'", this.FileName, this.SourceText, this.Row, this.Column);
 
   /// <summary>
   /// Returns the string representation of the token.
@@ -183,7 +169,7 @@ sealed class Token {
       Text = "end of input",
       Row = source.Length - 1,
       Column = source[source.Length - 1].Length,
-      Source = source,
+      SourceText = source,
       FileName = fileName,
     });
 
@@ -230,7 +216,7 @@ sealed class Token {
               Text = match.Value,
               Row = row,
               Column = column,
-              Source = source,
+              SourceText = source,
               FileName = fileName,
             };
             break;
@@ -242,7 +228,7 @@ sealed class Token {
               NumberValue = ParseNumber(match.Value),
               Row = row,
               Column = column,
-              Source = source,
+              SourceText = source,
               FileName = fileName,
             };
             break;
@@ -254,7 +240,7 @@ sealed class Token {
               StringValue = ParseString(match.Value),
               Row = row,
               Column = column,
-              Source = source,
+              SourceText = source,
               FileName = fileName,
             };
             break;
@@ -265,7 +251,7 @@ sealed class Token {
               Text = match.Value,
               Row = row,
               Column = column,
-              Source = source,
+              SourceText = source,
               FileName = fileName,
             };
             break;
