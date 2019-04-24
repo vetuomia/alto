@@ -350,7 +350,7 @@ static partial class Compiler {
             if (isRestParameter) {
               parameter.Slot.Source = SlotSource.ArgumentSlice;
               parameter.Slot.SourceIndex = index;
-              parser.Required(")", "The rest parameter must be the last");
+              parser.Next.Require(")", "The rest parameter must be the last");
             } else {
               parameter.Slot.Source = SlotSource.Argument;
               parameter.Slot.SourceIndex = index;

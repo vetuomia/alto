@@ -133,6 +133,20 @@ sealed class Token {
   public bool IsNot(params string[] tokens) => !tokens.Any(this.Is);
 
   /// <summary>
+  /// Ensures that the token matches, throws an error otherwise.
+  /// </summary>
+  /// <param name="token">The token.</param>
+  /// <param name="message">The optional error message.</param>
+  public Token Require(string token, string message = null) => this.Is(token) ? this : throw this.Error(message);
+
+  /// <summary>
+  /// Ensures that the token does not match, throws an error otherwise.
+  /// </summary>
+  /// <param name="token">The token.</param>
+  /// <param name="message">The optional error message.</param>
+  public Token Reject(string token, string message = null) => this.IsNot(token) ? this : throw this.Error(message);
+
+  /// <summary>
   /// Returns a parse error for this token.
   /// </summary>
   /// <param name="message">The error message.</param>
