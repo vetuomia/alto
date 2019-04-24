@@ -32,6 +32,30 @@ static class Core {
       Get = (self) => self.IsString(out var obj) ? obj.Length : default,
     },
 
+    // this.contains(substring) -> boolean
+    ["contains"] = new Function((self, args) => self.IsString(out var obj) && args.Arg(0).IsString(out var substring) ? obj.Contains(substring) : false),
+
+    // this.startsWith(prefix) -> boolean
+    ["startsWith"] = new Function((self, args) => self.IsString(out var obj) && args.Arg(0).IsString(out var prefix) ? obj.StartsWith(prefix) : false),
+
+    // this.endsWith(suffix) -> boolean
+    ["endsWith"] = new Function((self, args) => self.IsString(out var obj) && args.Arg(0).IsString(out var suffix) ? obj.EndsWith(suffix) : false),
+
+    // this.trim() -> string
+    ["trim"] = new Function((self, args) => self.IsString(out var obj) ? obj.Trim() : default),
+
+    // this.trimStart() -> string
+    ["trimStart"] = new Function((self, args) => self.IsString(out var obj) ? obj.TrimStart() : default),
+
+    // this.trimEnd() -> string
+    ["trimEnd"] = new Function((self, args) => self.IsString(out var obj) ? obj.TrimEnd() : default),
+
+    // this.toLower() -> string
+    ["toLower"] = new Function((self, args) => self.IsString(out var obj) ? obj.ToLowerInvariant() : default),
+
+    // this.toUpper() -> string
+    ["toUpper"] = new Function((self, args) => self.IsString(out var obj) ? obj.ToUpperInvariant() : default),
+
     // this.toString() -> string
     ["toString"] = new Function((self, args) => self.ToString()),
   };
@@ -110,12 +134,12 @@ static class Core {
 
       // NAN -> number
       ["NAN"] = new Property {
-        Get = (_) => double.NaN,
+        Value = double.NaN,
       },
 
       // INFINITY -> number
       ["INFINITY"] = new Property {
-        Get = (_) => double.PositiveInfinity,
+        Value = double.PositiveInfinity,
       },
 
       ["parse"] = new Function((_, args) => {
@@ -205,7 +229,7 @@ static class Core {
 
     ["Math"] = new Table {
       ["PI"] = new Property {
-        Get = (_) => Math.PI,
+        Value = Math.PI,
       },
     },
   };
@@ -291,7 +315,7 @@ static class Core {
           if (property.Get != null) {
             return property.Get(self); // Get property value
           }
-          return default; // Has property, no getter
+          return property.Value;
         }
         return value; // Value found
       }

@@ -26,4 +26,9 @@ sealed class Property {
   /// The setter function.
   /// </summary>
   public Setter Set { get; set; }
+
+  /// <summary>
+  /// The property value.
+  /// </summary>
+  public Value Value { get; set; }
 }
