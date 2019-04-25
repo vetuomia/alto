@@ -19,6 +19,15 @@ static class Core {
   /// Number prototype.
   /// </summary>
   public static readonly Table NumberProto = new Table {
+    // this.isNAN() -> boolean
+    ["isNAN"] = Method((double self) => double.IsNaN(self)),
+
+    // this.isFinite() -> boolean
+    ["isFinite"] = Method((double self) => double.IsFinite(self)),
+
+    // this.isInfinity() -> boolean
+    ["isInfinity"] = Method((double self) => double.IsInfinity(self)),
+
     // this.toString() -> string
     ["toString"] = new Function((self, args) => self.ToString()),
   };
@@ -32,32 +41,35 @@ static class Core {
       Get = (self) => self.IsString(out var obj) ? obj.Length : default,
     },
 
+    // this.isEmpty() -> boolean
+    ["isEmpty"] = Method((string self) => self.Length == 0),
+
     // this.contains(substring) -> boolean
-    ["contains"] = new Function((self, args) => self.IsString(out var obj) && args.Arg(0).IsString(out var substring) ? obj.Contains(substring) : false),
+    ["contains"] = Method((string self, string substring) => self.Contains(substring)),
 
     // this.startsWith(prefix) -> boolean
-    ["startsWith"] = new Function((self, args) => self.IsString(out var obj) && args.Arg(0).IsString(out var prefix) ? obj.StartsWith(prefix) : false),
+    ["startsWith"] = Method((string self, string prefix) => self.StartsWith(prefix)),
 
     // this.endsWith(suffix) -> boolean
-    ["endsWith"] = new Function((self, args) => self.IsString(out var obj) && args.Arg(0).IsString(out var suffix) ? obj.EndsWith(suffix) : false),
+    ["endsWith"] = Method((string self, string suffix) => self.EndsWith(suffix)),
 
     // this.trim() -> string
-    ["trim"] = new Function((self, args) => self.IsString(out var obj) ? obj.Trim() : default),
+    ["trim"] = Method((string self) => self.Trim()),
 
     // this.trimStart() -> string
-    ["trimStart"] = new Function((self, args) => self.IsString(out var obj) ? obj.TrimStart() : default),
+    ["trimStart"] = Method((string self) => self.TrimStart()),
 
     // this.trimEnd() -> string
-    ["trimEnd"] = new Function((self, args) => self.IsString(out var obj) ? obj.TrimEnd() : default),
+    ["trimEnd"] = Method((string self) => self.TrimEnd()),
 
     // this.toLower() -> string
-    ["toLower"] = new Function((self, args) => self.IsString(out var obj) ? obj.ToLowerInvariant() : default),
+    ["toLower"] = Method((string self) => self.ToLowerInvariant()),
 
     // this.toUpper() -> string
-    ["toUpper"] = new Function((self, args) => self.IsString(out var obj) ? obj.ToUpperInvariant() : default),
+    ["toUpper"] = Method((string self) => self.ToUpperInvariant()),
 
     // this.toString() -> string
-    ["toString"] = new Function((self, args) => self.ToString()),
+    ["toString"] = Method((string self) => self),
   };
 
   /// <summary>
@@ -74,6 +86,19 @@ static class Core {
       if (self.IsList(out var obj)) {
         obj.AddRange(args);
       }
+      return default;
+    }),
+
+    // this.forEach(fn: (value, index?) -> void) -> void
+    ["forEach"] = new Function((self, args) => {
+      var fn = args.Arg(0);
+
+      if (self.IsList(out var obj) && fn != default) {
+        for (var i = 0; i < obj.Count; i++) {
+          fn.Call(default, new Value[] { obj[i], i });
+        }
+      }
+
       return default;
     }),
 
@@ -127,33 +152,38 @@ static class Core {
   public static readonly Dictionary<string, Table> Modules = new Dictionary<string, Table> {
     ["Boolean"] = new Table {
       ["proto"] = BooleanProto,
+
+      // Boolean(value) -> boolean
+      [Callable] = Static((Value[] args) => args.Arg(0).ToBoolean()),
+
+      // parse(text) -> boolean | null
+      ["parse"] = Static((string text) => bool.TryParse(text, out var result) ? result : default),
     },
 
     ["Number"] = new Table {
       ["proto"] = NumberProto,
 
+      // Number(value) -> number
+      [Callable] = Static((Value[] args) => args.Arg(0).ToNumber()),
+
       // NAN -> number
-      ["NAN"] = new Property {
-        Value = double.NaN,
-      },
+      ["NAN"] = new Property { Value = double.NaN },
 
       // INFINITY -> number
-      ["INFINITY"] = new Property {
-        Value = double.PositiveInfinity,
-      },
+      ["INFINITY"] = new Property { Value = double.PositiveInfinity },
 
-      ["parse"] = new Function((_, args) => {
-        if (args.Arg(0).IsString(out var text) && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)) {
-          return number;
-        }
-        return default;
-      }),
+      // parse(text) -> number | null
+      ["parse"] = Static((string text) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var result) ? result : default),
     },
 
     ["String"] = new Table {
       ["proto"] = StringProto,
 
-      ["format"] = new Function((_, args) => {
+      // String(...values) -> string
+      [Callable] = Static((Value[] args) => string.Concat(args.Select(i => i.ToString()))),
+
+      // format(format, ...values) -> string
+      ["format"] = Static((Value[] args) => {
         var format = args.Arg(0).ToString();
         var values = args.ArgSlice(1).Cast<object>().ToArray();
         return string.Format(CultureInfo.InvariantCulture, format, values);
@@ -162,6 +192,9 @@ static class Core {
 
     ["List"] = new Table {
       ["proto"] = ListProto,
+
+      // List(...values) -> List
+      [Callable] = Static((Value[] args) => new List(args)),
     },
 
     ["Function"] = new Table {
@@ -170,18 +203,28 @@ static class Core {
 
     ["Exception"] = new Table {
       ["proto"] = ExceptionProto,
+
+      // Exception(value) -> Exception
+      [Callable] = Static((Value[] args) => args.Arg(0).ToException()),
     },
 
     ["Table"] = new Table {
+      // keys(obj) -> List
+      ["keys"] = Static((Value[] args) => args.Arg(0).IsTable(out var obj) ? new List(obj.Keys) : new List()),
     },
 
     ["Console"] = new Table {
-      ["beep"] = new Function((_, args) => {
-        Console.Beep();
-        return default;
-      }),
+      // beep()
+      ["beep"] = Static(Console.Beep),
 
-      ["readKey"] = new Function((_, args) => {
+      // readkey(intercept?) -> {
+      //   key:     string,
+      //   keyCode: number,
+      //   keyChar: string,
+      //   alt:     boolean,
+      //   shift:   control,
+      //  } | null
+      ["readKey"] = Static((Value[] args) => {
         var key = Console.ReadKey(args.Arg(0).ToBoolean());
         return key != null
           ? new Table {
@@ -195,44 +238,49 @@ static class Core {
           : default;
       }),
 
-      ["readLine"] = new Function((_, args) => Console.ReadLine()),
+      // readLine() -> string
+      ["readLine"] = Static(() => Console.ReadLine()),
 
-      ["format"] = new Function((_, args) => {
+      // format(format, ...values)
+      ["format"] = Static((Value[] args) => {
         var format = args.Arg(0).ToString();
         var values = args.ArgSlice(1).Cast<object>().ToArray();
         Console.Write(string.Format(CultureInfo.InvariantCulture, format, values));
-        return default;
       }),
 
-      ["formatLine"] = new Function((_, args) => {
+      // formatLine(format, ...values)
+      ["formatLine"] = Static((Value[] args) => {
         var format = args.Arg(0).ToString();
         var values = args.ArgSlice(1).Cast<object>().ToArray();
         Console.WriteLine(string.Format(CultureInfo.InvariantCulture, format, values));
-        return default;
       }),
 
-      ["write"] = new Function((_, args) => {
+      // write(...values)
+      ["write"] = Static((Value[] args) => {
         foreach (var arg in args) {
           Console.Write(arg.ToString());
         }
-        return default;
       }),
 
-      ["writeLine"] = new Function((_, args) => {
+      // writeLine(...values)
+      ["writeLine"] = Static((Value[] args) => {
         foreach (var arg in args) {
           Console.Write(arg.ToString());
         }
         Console.WriteLine();
-        return default;
       }),
     },
 
     ["Math"] = new Table {
-      ["PI"] = new Property {
-        Value = Math.PI,
-      },
+      // PI -> number
+      ["PI"] = new Property { Value = Math.PI },
     },
   };
+
+  /// <summary>
+  /// Key for callable objects.
+  /// </summary>
+  private const string Callable = ".call";
 
   /// <summary>
   /// Data key for a value wrapped in an exception.
@@ -415,7 +463,7 @@ static class Core {
   public static Value Call(this Value self, Value receiver, Value[] arguments) {
     if (self.IsFunction(out var function)) {
       return function(receiver, arguments);
-    } else if (self.Get(".call").IsFunction(out var dotCall)) {
+    } else if (self.Get(Callable).IsFunction(out var dotCall)) {
       return dotCall(receiver, arguments);
     } else {
       throw new Exception($"'{self}' is not a function");
@@ -433,7 +481,7 @@ static class Core {
 
     if (self.IsFunction(out var function)) {
       target = function;
-    } else if (self.Get(".call").IsFunction(out var dotCall)) {
+    } else if (self.Get(Callable).IsFunction(out var dotCall)) {
       target = dotCall;
     } else {
       throw new Exception($"'{self}' is not a function");
@@ -445,4 +493,67 @@ static class Core {
       throw new Exception($"'{argumentList}' is not a list");
     }
   }
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Method(Func<double, bool> fn) => (self, args) => self.IsNumber(out var obj) ? fn(obj) : false;
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Method(Func<string, bool> fn) => (self, args) => self.IsString(out var obj) ? fn(obj) : false;
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Method(Func<string, string, bool> fn) => (self, args) => self.IsString(out var obj) && args.Arg(0).IsString(out var arg0) ? fn(obj, arg0) : false;
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Method(Func<string, Value> fn) => (self, args) => self.IsString(out var obj) ? fn(obj) : default;
+
+  /// <summary>
+  /// Wraps a static delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Static(Action fn) => (_, args) => { fn(); return default; };
+
+  /// <summary>
+  /// Wraps a static delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Static(Action<Value[]> fn) => (_, args) => { fn(args); return default; };
+
+  /// <summary>
+  /// Wraps a static delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Static(Func<Value> fn) => (_, args) => fn();
+
+  /// <summary>
+  /// Wraps a static delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Static(Func<Value[], Value> fn) => (_, args) => fn(args);
+
+  /// <summary>
+  /// Wraps a static delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Static(Func<string, Value> fn) => (_, args) => args.Arg(0).IsString(out var obj) ? fn(obj) : default;
 }

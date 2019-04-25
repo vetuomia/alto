@@ -288,11 +288,15 @@ static partial class Compiler {
           }
 
           parser.Required("]");
-        } else {
+        } else if (parser.Optional(Token.Word) is Token word) {
           key = new StringLiteral {
-            Token = parser.Required(Token.Word, "Expected a member name before ':'"),
+            Token = word,
             Scope = scope,
           };
+        } else if (parser.Primitive(context) is Literal literal) {
+          key = literal;
+        } else {
+          throw parser.Error("Expected a member name or a literal before ':'");
         }
 
         parser.Required(":");
