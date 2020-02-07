@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 
 /// <summary>
 /// Module holds both the executable code and the global data needed by the
@@ -16,7 +18,12 @@ using System.Diagnostics;
 /// logic. The resolution logic must be injected into the module through the
 /// <see cref="Module.Importing" /> event.
 /// </summary>
-sealed class Module {
+sealed partial class Module {
+  /// <summary>
+  /// The root directory.
+  /// </summary>
+  public static string RootDirectory { get; } = Environment.CurrentDirectory;
+
   /// <summary>
   /// The executable code.
   /// </summary>
@@ -66,6 +73,48 @@ sealed class Module {
   }
 
   /// <summary>
+  /// Loads and executes a module.
+  /// </summary>
+  /// <param name="path">The module path.</param>
+  /// <returns>The module exports.</returns>
+  public static Table Load(string path) {
+    var fullPath = System.IO.Path.GetFullPath(path);
+
+    if (!fullPath.StartsWith(RootDirectory)) {
+      throw new IOException($"ERROR: '{fullPath}' is outside the root directory");
+    }
+
+    if (!Modules.TryGetValue(fullPath, out var exports)) {
+      var sourceText = File.ReadAllText(fullPath);
+      var fileName = fullPath.Substring(RootDirectory.Length + 1);
+      var module = Compiler.Compile(sourceText, fileName);
+      module.Name = fileName;
+      module.Path = fullPath;
+      module.Importing += Resolve;
+      Modules.Add(fullPath, exports = module.Exports);
+      module.Main();
+    }
+
+    return exports;
+  }
+
+  /// <summary>
+  /// Resolves a module dependency.
+  /// </summary>
+  /// <param name="source">The source module.</param>
+  /// <param name="import">The module import.</param>
+  public static void Resolve(Module source, Import import) {
+    if (import.Value.IsNull) {
+      var name = import.Name.Replace('\\', '/');
+      var path = System.IO.Path.IsPathRooted(name)
+        ? RootDirectory + name
+        : System.IO.Path.Combine(System.IO.Path.GetDirectoryName(source.Path), name);
+
+      import.Value = Load(path);
+    }
+  }
+
+  /// <summary>
   /// Runs the module main function.
   /// </summary>
   /// <param name="arguments">The function arguments.</param>
@@ -73,8 +122,8 @@ sealed class Module {
   public Value Main(params Value[] arguments) {
     for (var i = 0; i < this.Data.Length; i++) {
       if (this.Data[i].IsImport(out var import)) {
-        if (Core.Modules.TryGetValue(import.Name, out var module)) {
-          import.Value = module;
+        if (Modules.TryGetValue(import.Name, out var exports)) {
+          import.Value = exports;
         } else {
           this.Importing?.Invoke(this, import);
         }

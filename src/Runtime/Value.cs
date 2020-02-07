@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
@@ -17,7 +18,134 @@ using System.Runtime.InteropServices;
 /// - property
 /// - exception
 /// </summary>
-readonly struct Value : IEquatable<Value>, IFormattable {
+readonly struct Value : IEquatable<Value> {
+  /// <summary>
+  /// Key for callable values.
+  /// </summary>
+  public const string Callable = ".call";
+
+  /// <summary>
+  /// Boolean prototype.
+  /// </summary>
+  public static readonly Table BooleanProto = new Table {
+  };
+
+  /// <summary>
+  /// Number prototype.
+  /// </summary>
+  public static readonly Table NumberProto = new Table {
+    // this.isNAN() -> boolean
+    ["isNAN"] = Fn((double self) => double.IsNaN(self)),
+
+    // this.isFinite() -> boolean
+    ["isFinite"] = Fn((double self) => double.IsFinite(self)),
+
+    // this.isInfinity() -> boolean
+    ["isInfinity"] = Fn((double self) => double.IsInfinity(self)),
+  };
+
+  /// <summary>
+  /// String prototype.
+  /// </summary>
+  public static readonly Table StringProto = new Table {
+    // this.length -> number
+    ["length"] = new Property {
+      Get = (self) => self.IsString(out var obj) ? obj.Length : default,
+    },
+
+    // this.isEmpty() -> boolean
+    ["isEmpty"] = Fn((string self) => self.Length == 0),
+
+    // this.contains(substring) -> boolean
+    ["contains"] = Fn((string self, string substring) => self.Contains(substring)),
+
+    // this.startsWith(prefix) -> boolean
+    ["startsWith"] = Fn((string self, string prefix) => self.StartsWith(prefix)),
+
+    // this.endsWith(suffix) -> boolean
+    ["endsWith"] = Fn((string self, string suffix) => self.EndsWith(suffix)),
+
+    // this.trim() -> string
+    ["trim"] = Fn((string self) => self.Trim()),
+
+    // this.trimStart() -> string
+    ["trimStart"] = Fn((string self) => self.TrimStart()),
+
+    // this.trimEnd() -> string
+    ["trimEnd"] = Fn((string self) => self.TrimEnd()),
+
+    // this.toLower() -> string
+    ["toLower"] = Fn((string self) => self.ToLowerInvariant()),
+
+    // this.toUpper() -> string
+    ["toUpper"] = Fn((string self) => self.ToUpperInvariant()),
+  };
+
+  /// <summary>
+  /// List prototype.
+  /// </summary>
+  public static readonly Table ListProto = new Table {
+    // this.length -> number
+    ["length"] = new Property {
+      Get = (self) => self.IsList(out var obj) ? obj.Count : default,
+    },
+
+    // this.add(arg0, arg1, ..., argN) -> null
+    ["add"] = new Function((self, args) => {
+      if (self.IsList(out var obj)) {
+        obj.AddRange(args);
+      }
+      return default;
+    }),
+
+    // this.forEach(fn: (value, index?) -> void) -> void
+    ["forEach"] = new Function((self, args) => {
+      var fn = Value.At(args, 0);
+
+      if (self.IsList(out var obj) && fn != default) {
+        for (var i = 0; i < obj.Count; i++) {
+          fn.Call(default, new Value[] { obj[i], i });
+        }
+      }
+
+      return default;
+    }),
+  };
+
+  /// <summary>
+  /// Function prototype.
+  /// </summary>
+  public static readonly Table FunctionProto = new Table {
+    // this.bind(receiver) -> function
+    ["bind"] = new Function((self, args) => new Function((_, args2) => self.Call(Value.At(args, 0), args2))),
+
+    // this.call(receiver, arg0, arg1, ..., argN) -> result
+    ["call"] = new Function((self, args) => self.Call(Value.At(args, 0), Value.SliceAt(args, 1))),
+
+    // this.apply(receiver, argList) -> result
+    ["apply"] = new Function((self, args) => self.Apply(Value.At(args, 0), Value.At(args, 1))),
+  };
+
+  /// <summary>
+  /// Exception prototype.
+  /// </summary>
+  public static readonly Table ExceptionProto = new Table {
+    // this.message -> string
+    ["message"] = new Property {
+      Get = (self) => self.IsException(out var obj) ? obj.Message : default,
+    },
+
+    // this.stackTrace -> string
+    ["stackTrace"] = new Property {
+      Get = (self) => self.IsException(out var obj) ? obj.GetStackTrace() : default,
+    },
+
+    // this.value -> any
+    ["value"] = new Property {
+      Get = (self) => self.IsException(out var obj) ? obj.ExceptionToValue() : default,
+    },
+  };
+
   /// <summary>
   /// Marker object that indicates that this object holds a boolean.
   /// </summary>
@@ -104,6 +232,39 @@ readonly struct Value : IEquatable<Value>, IFormattable {
   public bool IsNull => this.obj == null;
 
   /// <summary>
+  /// Returns the value at the given index.
+  /// </summary>
+  /// <param name="values">The values array.</param>
+  /// <param name="index">The array index.</param>
+  /// <returns>The value or default if the index is out of bounds.</returns>
+  public static Value At(Value[] values, int index) {
+    Debug.Assert(0 <= index);
+    return values != null && index < values.Length ? values[index] : default;
+  }
+
+  /// <summary>
+  /// Returns the slice starting at the given index.
+  /// </summary>
+  /// <param name="values">The values array.</param>
+  /// <param name="index">The array index.</param>
+  /// <returns>The slice or an empty array if the index is out of bounds.</returns>
+  public static Value[] SliceAt(Value[] values, int index) {
+    Debug.Assert(0 <= index);
+
+    if (values != null) {
+      var count = values.Length - index;
+
+      if (count > 0) {
+        var slice = new Value[count];
+        Array.Copy(values, index, slice, 0, count);
+        return slice;
+      }
+    }
+
+    return Array.Empty<Value>();
+  }
+
+  /// <summary>
   /// Determines whether the value is a boolean.
   /// </summary>
   /// <param name="value">Output parameter for the value.</param>
@@ -182,6 +343,147 @@ readonly struct Value : IEquatable<Value>, IFormattable {
   public override int GetHashCode() => HashCode.Combine(this.val.AllBits, this.obj);
 
   /// <summary>
+  /// Gets a member or an element from the value.
+  /// </summary>
+  /// <param name="key">The member or element key.</param>
+  public Value Get(Value key) {
+    Table proto = null;
+
+    if (this.IsTable(out var table)) {
+      if (table.TryGetValue(key, out var value)) {
+        if (value.IsProperty(out var property)) {
+          if (property.Get != null) {
+            return property.Get(this); // Get property value
+          }
+          return property.Value;
+        }
+        return value; // Value found
+      }
+      return default; // No value
+    } else if (this.IsList(out var list)) {
+      if (key.IsNumber(out var number)) {
+        var index = (int)number;
+        if (0 <= index && index < list.Count) {
+          return list[index]; // Value found
+        }
+        return default; // Out of bounds
+      }
+      proto = ListProto;
+    } else if (this.IsException(out _)) {
+      proto = ExceptionProto;
+    } else if (this.IsFunction(out _)) {
+      proto = FunctionProto;
+    } else if (this.IsString(out _)) {
+      proto = StringProto;
+    } else if (this.IsNumber(out _)) {
+      proto = NumberProto;
+    } else if (this.IsBoolean(out _)) {
+      proto = BooleanProto;
+    }
+
+    if (proto != null) {
+      if (proto.TryGetValue(key, out var value)) {
+        if (value.IsProperty(out var property)) {
+          if (property.Get != null) {
+            return property.Get(this);
+          }
+          return default;
+        }
+        return value;
+      }
+    }
+
+    return default;
+  }
+
+  /// <summary>
+  /// Sets a member or an element for the value.
+  /// </summary>
+  /// <param name="key">The member or element key.</param>
+  /// <param name="value">The member or element value.</param>
+  public void Set(Value key, Value value) {
+    Table proto = null;
+
+    if (this.IsTable(out var table)) {
+      if (table.TryGetValue(key, out var found) && found.IsProperty(out var property)) {
+        if (property.Set != null) {
+          property.Set(this, value);
+        } else {
+          return;
+        }
+      } else {
+        table[key] = value;
+      }
+      return;
+    } else if (this.IsList(out var list)) {
+      if (key.IsNumber(out var number)) {
+        var index = (int)number;
+        if (0 <= index && index < list.Count) {
+          list[index] = value;
+        }
+        return;
+      }
+      proto = ListProto;
+    } else if (this.IsException(out _)) {
+      proto = ExceptionProto;
+    } else if (this.IsFunction(out _)) {
+      proto = FunctionProto;
+    } else if (this.IsString(out _)) {
+      proto = StringProto;
+    } else if (this.IsNumber(out _)) {
+      proto = NumberProto;
+    } else if (this.IsBoolean(out _)) {
+      proto = BooleanProto;
+    }
+
+    if (proto != null) {
+      if (proto.TryGetValue(key, out var found) && found.IsProperty(out var property)) {
+        if (property.Set != null) {
+          property.Set(this, value);
+        }
+      }
+    }
+  }
+
+  /// <summary>
+  /// Calls a function.
+  /// </summary>
+  /// <param name="receiver">The receiver.</param>
+  /// <param name="arguments">The arguments.</param>
+  public Value Call(Value receiver, Value[] arguments) {
+    if (this.IsFunction(out var function)) {
+      return function(receiver, arguments);
+    } else if (this.Get(Callable).IsFunction(out var dotCall)) {
+      return dotCall(receiver, arguments);
+    } else {
+      throw new Exception($"'{this}' is not a function");
+    }
+  }
+
+  /// <summary>
+  /// Calls a function with an argument list.
+  /// </summary>
+  /// <param name="receiver">The receiver.</param>
+  /// <param name="argumentList">The argument list.</param>
+  public Value Apply(Value receiver, Value argumentList) {
+    Function target;
+
+    if (this.IsFunction(out var function)) {
+      target = function;
+    } else if (this.Get(Callable).IsFunction(out var dotCall)) {
+      target = dotCall;
+    } else {
+      throw new Exception($"'{this}' is not a function");
+    }
+
+    if (argumentList.IsList(out var arguments)) {
+      return target(receiver, arguments.ToArray());
+    } else {
+      throw new Exception($"'{argumentList}' is not a list");
+    }
+  }
+
+  /// <summary>
   /// Converts the value to a boolean.
   ///
   /// Null becomes false, allowing easy null check:
@@ -198,6 +500,7 @@ readonly struct Value : IEquatable<Value>, IFormattable {
   /// }
   /// ```
   /// </summary>
+  /// <returns>The boolean.</returns>
   public bool ToBoolean() {
     if (this.IsNull) {
       return false;
@@ -222,6 +525,7 @@ readonly struct Value : IEquatable<Value>, IFormattable {
   /// var a = 2 + false; // a = NaN
   /// ```
   /// </summary>
+  /// <returns>The number.</returns>
   public double ToNumber() {
     if (this.IsNumber(out var number)) {
       return number;
@@ -231,33 +535,59 @@ readonly struct Value : IEquatable<Value>, IFormattable {
   }
 
   /// <summary>
-  /// Converts the value to a string.
+  /// Returns a debug string representation of the object.
   /// </summary>
-  public override string ToString() => this.ToString(null, CultureInfo.InvariantCulture);
+  public override string ToString() {
+    string CallToString(Value value, Table proto) {
+      if (proto.TryGetValue("toString", out var toString) && toString.Call(value, Array.Empty<Value>()).IsString(out var result)) {
+        return result;
+      } else {
+        return null;
+      }
+    }
 
-  /// <summary>
-  /// Converts the value to a string.
-  /// </summary>
-  /// <param name="format">The format string.</param>
-  /// <param name="formatProvider">The format provider.</param>
-  public string ToString(string format, IFormatProvider formatProvider) {
     if (this.IsNull) {
       return "null";
     }
 
     if (this.IsBoolean(out var boolean)) {
-      return boolean ? "true" : "false";
+      return CallToString(this, BooleanProto) ?? (boolean ? "true" : "false");
     }
 
     if (this.IsNumber(out var number)) {
-      return number.ToString(format, formatProvider);
+      return CallToString(this, NumberProto) ?? number.ToString(null, CultureInfo.InvariantCulture);
+    }
+
+    if (this.IsString(out var str)) {
+      return CallToString(this, StringProto) ?? str;
+    }
+
+    if (this.IsList(out var list)) {
+      return CallToString(this, ListProto) ?? $"List({list.Count})";
+    }
+
+    if (this.IsTable(out var table)) {
+      return CallToString(this, table) ?? $"Table({table.Count})";
+    }
+
+    if (this.IsFunction(out _)) {
+      return CallToString(this, FunctionProto) ?? "Function";
     }
 
     if (this.IsException(out var exception)) {
-      return exception.Message;
+      return CallToString(this, ExceptionProto) ?? exception.Message;
     }
 
-    return this.obj.ToString();
+    if (this.IsImport(out var import)) {
+      return $"import '{import.Name}'";
+    }
+
+    if (this.IsProperty(out _)) {
+      return "Property";
+    }
+
+    Debug.Fail("Unknown value type");
+    return string.Empty;
   }
 
   /// <summary>
@@ -330,6 +660,55 @@ readonly struct Value : IEquatable<Value>, IFormattable {
   /// <param name="a">The left operand.</param>
   /// <param name="b">The right operand.</param>
   public static bool operator !=(Value a, Value b) => !(a == b);
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Fn(Func<bool, Value> fn) => (self, args) => self.IsBoolean(out var v) ? fn(v) : default;
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Fn(Func<double, Value> fn) => (self, args) => self.IsNumber(out var v) ? fn(v) : default;
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Fn(Func<string, string, bool> fn) => (self, args) => self.IsString(out var v) && Value.At(args, 0).IsString(out var arg0) ? fn(v, arg0) : false;
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Fn(Func<string, Value> fn) => (self, args) => self.IsString(out var v) ? fn(v) : default;
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Fn(Func<List, Value> fn) => (self, args) => self.IsList(out var v) ? fn(v) : default;
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Fn(Func<Function, Value> fn) => (self, args) => self.IsFunction(out var v) ? fn(v) : default;
+
+  /// <summary>
+  /// Wraps a method delegate into a <see cref="Function" /> instance.
+  /// </summary>
+  /// <param name="fn">The function delegate.</param>
+  /// <returns>The <see cref="Function" /> instance.</returns>
+  private static Function Fn(Func<Exception, Value> fn) => (self, args) => self.IsException(out var v) ? fn(v) : default;
 
   /// <summary>
   /// Union type for holding the value types.

@@ -36,7 +36,7 @@ static class CoreRTLinq {
   public static T FirstOrDefault<T>(this IEnumerable<T> sequence, Func<T, bool> predicate) => System.Linq.Enumerable.FirstOrDefault(sequence, predicate);
 
   /// <summary>
-  /// Workaround for a linker warning in CoreRT. Something in the real Select causes produces:
+  /// Workaround for a linker warning in CoreRT. Something in the real Select produces:
   /// ```
   /// ld : warning : PIE disabled. Absolute addressing (perhaps -mdynamic-no-pic) not allowed
   /// in code signed PIE, but used in ... To fix this warning, don't compile with -mdynamic-no-pic

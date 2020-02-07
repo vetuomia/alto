@@ -486,10 +486,6 @@ static class UnitTests {
     describe(nameof(Compiler), it => {
       it("can parse and compile simple scripts", expect => {
         var mod = Compiler.Compile(@"
-          import Console from 'Console'
-
-          Console.writeLine('  Hello, World!')
-
           const C = 3
           const add = (a, b) => a + b + C
 

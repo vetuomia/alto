@@ -19,6 +19,14 @@ testing.run(describe => {
 
       expect(t[null] == 1);
     });
+
+    it("allows overriding toString", expect => {
+      const t = {
+        toString: () => "hello"
+      };
+
+      expect(String(t) == "hello");
+    });
   });
 
   describe("lambda", it => {

@@ -10,6 +10,11 @@ static class Program {
   private static bool running;
 
   /// <summary>
+  /// Indicates whether the inspector is active.
+  /// </summary>
+  private static bool inspecting;
+
+  /// <summary>
   /// Indicates whether to display the source code instead of the assembly.
   /// </summary>
   private static bool displaySource = true;
@@ -86,7 +91,7 @@ static class Program {
     };
 
     try {
-      Loader.Load(path);
+      Module.Load(path);
       return 0;
     } catch (ParseError error) {
       Console.WriteLine(error);
@@ -107,137 +112,143 @@ static class Program {
   /// <param name="interpreter">The interpreter.</param>
   /// <param name="exception">The thrown exception, if any.</param>
   private static void Inspect(ref Interpreter interpreter, Exception exception) {
-    if (running && exception == null) {
+    if (inspecting || running && exception == null) {
       return;
     }
 
-    if (exception != null) {
-      skipUntilNewSourceLine = false;
-    }
+    try {
+      inspecting = true;
 
-    if (displayHelp) {
-      displayHelp = false;
-      Console.WriteLine("Type 'go' to continue, 'quit' to exit, 'help' for more commands");
-    }
-
-    var paused = true;
-    var sourceMap = interpreter.GetSourceMap();
-
-    var skip =
-      skipUntilNewSourceLine && // <- skip wanted
-      sourceMap?.Source == lastSeenSourceMap?.Source && // same module
-      (sourceMap?.Row == null || sourceMap?.Row == lastSeenSourceMap?.Row); // <- no row or same row
-
-    if (skip) {
-      paused = false;
-    } else {
-      skipUntilNewSourceLine = false;
-    }
-
-    while (paused) {
-      var command = Prompt(ref interpreter, exception);
-
-      switch (command) {
-        case "":
-          paused = false;
-          running = false;
-          skipUntilNewSourceLine = displaySource;
-          break;
-
-        case "+":
-          displaySize = (displaySize == 1) ? 6 : Math.Min(displaySize + 4, 22);
-          break;
-
-        case "-":
-          displaySize = (displaySize == 6) ? 1 : Math.Max(1, displaySize - 4);
-          break;
-
-        case "g":
-        case "go":
-          paused = false;
-          running = true;
-          break;
-
-        case "!":
-        case "detach":
-          paused = false;
-          running = false;
-          Interpreter.Inspector = null;
-          break;
-
-        case "?":
-        case "scope":
-          Print(ref interpreter, InspectorDataSource.Scope, false);
-          break;
-
-        case "v":
-        case "view":
-          displaySource = !displaySource;
-          break;
-
-        case "c":
-        case "code":
-          InspectCode(ref interpreter);
-          break;
-
-        case "a":
-        case "all":
-          Print(ref interpreter, InspectorDataSource.All, true);
-          break;
-
-        case "d":
-        case "data":
-          Print(ref interpreter, InspectorDataSource.Data, true);
-          break;
-
-        case "p":
-        case "parameters":
-          Print(ref interpreter, InspectorDataSource.Parameters, true);
-          break;
-
-        case "s":
-        case "stack":
-          Print(ref interpreter, InspectorDataSource.Stack, true);
-          break;
-
-        case "l":
-        case "closure":
-          Print(ref interpreter, InspectorDataSource.Closure, true);
-          break;
-
-        case "r":
-        case "registers":
-          Print(ref interpreter, InspectorDataSource.Registers, true);
-          break;
-
-        case "e":
-        case "exception":
-          InspectException(ref interpreter, exception);
-          break;
-
-        case "modules":
-          InspectModules();
-          break;
-
-        case "memory":
-          InspectMemoryUsage();
-          break;
-
-        case "clear":
-          Console.Clear();
-          break;
-
-        case "q":
-        case "quit":
-          Environment.Exit(0);
-          break;
-
-        default:
-          PrintInspectorHelp();
-          break;
+      if (exception != null) {
+        skipUntilNewSourceLine = false;
       }
 
-      lastSeenSourceMap = sourceMap;
+      if (displayHelp) {
+        displayHelp = false;
+        Console.WriteLine("Type 'go' to continue, 'quit' to exit, 'help' for more commands");
+      }
+
+      var paused = true;
+      var sourceMap = interpreter.GetSourceMap();
+
+      var skip =
+        skipUntilNewSourceLine && // <- skip wanted
+        sourceMap?.SourceText == lastSeenSourceMap?.SourceText && // <- same module
+        (sourceMap?.Row == null || sourceMap?.Row == lastSeenSourceMap?.Row); // <- no row or same row
+
+      if (skip) {
+        paused = false;
+      } else {
+        skipUntilNewSourceLine = false;
+      }
+
+      while (paused) {
+        var command = Prompt(ref interpreter, exception);
+
+        switch (command) {
+          case "":
+            paused = false;
+            running = false;
+            skipUntilNewSourceLine = displaySource;
+            break;
+
+          case "+":
+            displaySize = (displaySize == 1) ? 6 : Math.Min(displaySize + 4, 22);
+            break;
+
+          case "-":
+            displaySize = (displaySize == 6) ? 1 : Math.Max(1, displaySize - 4);
+            break;
+
+          case "g":
+          case "go":
+            paused = false;
+            running = true;
+            break;
+
+          case "!":
+          case "detach":
+            paused = false;
+            running = false;
+            Interpreter.Inspector = null;
+            break;
+
+          case "?":
+          case "scope":
+            Print(ref interpreter, InspectorDataSource.Scope, false);
+            break;
+
+          case "v":
+          case "view":
+            displaySource = !displaySource;
+            break;
+
+          case "c":
+          case "code":
+            InspectCode(ref interpreter);
+            break;
+
+          case "a":
+          case "all":
+            Print(ref interpreter, InspectorDataSource.All, true);
+            break;
+
+          case "d":
+          case "data":
+            Print(ref interpreter, InspectorDataSource.Data, true);
+            break;
+
+          case "p":
+          case "parameters":
+            Print(ref interpreter, InspectorDataSource.Parameters, true);
+            break;
+
+          case "s":
+          case "stack":
+            Print(ref interpreter, InspectorDataSource.Stack, true);
+            break;
+
+          case "l":
+          case "closure":
+            Print(ref interpreter, InspectorDataSource.Closure, true);
+            break;
+
+          case "r":
+          case "registers":
+            Print(ref interpreter, InspectorDataSource.Registers, true);
+            break;
+
+          case "e":
+          case "exception":
+            InspectException(ref interpreter, exception);
+            break;
+
+          case "modules":
+            InspectModules();
+            break;
+
+          case "memory":
+            InspectMemoryUsage();
+            break;
+
+          case "clear":
+            Console.Clear();
+            break;
+
+          case "q":
+          case "quit":
+            Environment.Exit(0);
+            break;
+
+          default:
+            PrintInspectorHelp();
+            break;
+        }
+
+        lastSeenSourceMap = sourceMap;
+      }
+    } finally {
+      inspecting = false;
     }
   }
 
@@ -327,7 +338,7 @@ static class Program {
 
       if (src != null && displaySource) {
         var row = src?.Row ?? lastSeenSourceMap?.Row ?? 0;
-        var code = src.Source;
+        var code = src.SourceText;
 
         var scope = w > 100
           ? interpreter
@@ -462,7 +473,7 @@ static class Program {
       var src = interpreter.GetSourceMap(i);
 
       if (src?.Row != null && src?.Row != last?.Row) {
-        Console.Write(" {0}", src.Source[src.Row.Value]);
+        Console.Write(" {0}", src.SourceText[src.Row.Value]);
         last = src;
       }
 
@@ -504,14 +515,14 @@ static class Program {
   /// Inspects the loaded modules.
   /// </summary>
   private static void InspectModules() {
-    var modules = from module in Loader.Modules.Values
-                  orderby module.Name
+    var modules = from module in Module.Modules
+                  orderby module.Key
                   select module;
 
     foreach (var module in modules) {
-      Console.WriteLine(module.Name);
+      Console.WriteLine(module.Key);
 
-      var exports = from export in module.Exports
+      var exports = from export in module.Value
                     orderby export.Key.ToString()
                     select export;
 

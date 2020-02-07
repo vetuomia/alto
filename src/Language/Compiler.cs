@@ -1034,6 +1034,34 @@ static partial class Compiler {
       Token = parser.Next,
     };
 
+    var builtins = new[] {
+      "Boolean",
+      "String",
+      "Number",
+      "List",
+      "Table",
+      "Function",
+      "Exception",
+    };
+
+    // Import the built-in modules
+    foreach (var builtin in builtins) {
+      script.Statements.Add(new ImportStatement {
+        Scope = scope,
+        Token = parser.Next,
+        Source = builtin,
+        Identifier = new Identifier(MakeSlot(builtin)) {
+          Token = parser.Next,
+          Scope = scope,
+          Slot = {
+            Kind = SlotKind.Import,
+            Storage = SlotStorage.Global,
+            ReadOnly = true,  // <- imports are always read-only
+          },
+        },
+      });
+    }
+
     parser.RepeatZeroOrMoreUntil(Token.End, delegate {
       script.Statements.Add(parser.Statement(null) as Statement);
     });

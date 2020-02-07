@@ -336,7 +336,7 @@ struct Interpreter {
           }
 
         case Opcode.Throw: {
-            var exception = this.Pop().ToException();
+            var exception = this.Pop().ValueToException();
             this.AddStackTrace(exception);
 
             Inspector?.Invoke(ref this, exception);
@@ -541,7 +541,7 @@ struct Interpreter {
   /// Returns an argument or null if the argument is undefined.
   /// </summary>
   /// <param name="index">The argument index.</param>
-  private Value GetArgument(int index) => this.Arguments.Arg(index);
+  private Value GetArgument(int index) => Value.At(this.Arguments, index);
 
   /// <summary>
   /// Returns an argument list, starting from the given index.
@@ -610,6 +610,10 @@ struct Interpreter {
   /// </summary>
   /// <param name="count">The number of values to remove.</param>
   private Value[] PopArray(int count) {
+    if (count == 0) {
+      return Array.Empty<Value>();
+    }
+
     this.Drop(count);
 
     var array = new Value[count];

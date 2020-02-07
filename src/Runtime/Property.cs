@@ -28,7 +28,7 @@ sealed class Property {
   public Setter Set { get; set; }
 
   /// <summary>
-  /// The property value.
+  /// The constant value, used if no getter is defined.
   /// </summary>
   public Value Value { get; set; }
 }
